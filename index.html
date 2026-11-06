@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#090b1c">
+  <meta name="description" content="驾驶小飞船穿越星海，躲开陨石，收集星星！">
+  <title>星海穿梭 · 一场轻快的太空冒险</title>
+  <style>
+    :root { color-scheme: dark; --ink:#f7f5ff; --muted:#a9aac8; --cyan:#7cf7e8; --pink:#ff77bd; }
+    * { box-sizing:border-box; }
+    html,body { margin:0; min-height:100%; background:#090b1c; color:var(--ink); font-family:ui-rounded,"SF Pro Rounded",system-ui,-apple-system,"Segoe UI",sans-serif; }
+    body { min-height:100svh; display:grid; place-items:center; overflow:hidden; padding:16px; background:radial-gradient(ellipse at 50% 0%,#20234c 0,#10132c 38%,#090b1c 78%); }
+    .game { width:min(100%,520px); }
+    header { display:flex; justify-content:space-between; align-items:center; margin:0 2px 12px; }
+    .brand { display:flex; align-items:center; gap:10px; }
+    .brand-icon { display:grid; place-items:center; width:42px; height:42px; border:1px solid #ffffff20; border-radius:14px; background:#ffffff0b; font-size:22px; box-shadow:0 0 24px #7cf7e822; }
+    h1 { margin:0; font-size:clamp(18px,5vw,23px); letter-spacing:.04em; }
+    .tagline { color:var(--muted); font-size:12px; margin-top:2px; }
+    .sound { border:1px solid #ffffff20; color:var(--ink); background:#ffffff0b; border-radius:12px; width:42px; height:42px; font-size:18px; cursor:pointer; }
+    .hud { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:9px; }
+    .stat { border:1px solid #ffffff15; border-radius:14px; padding:8px 12px; background:#ffffff08; }
+    .stat-label { display:block; font-size:10px; text-transform:uppercase; letter-spacing:.12em; color:var(--muted); }
+    .stat-value { display:block; font-size:19px; line-height:1.35; font-weight:750; font-variant-numeric:tabular-nums; }
+    .arena { position:relative; border:1px solid #aeb4ff35; border-radius:21px; overflow:hidden; background:#080b20; box-shadow:0 20px 70px #0008,0 0 45px #727dff13; }
+    canvas { display:block; width:100%; height:min(66svh,590px); min-height:360px; touch-action:none; }
+    .overlay { position:absolute; inset:0; display:grid; place-items:center; padding:22px; text-align:center; background:linear-gradient(180deg,#090b1c35,#090b1ccc); backdrop-filter:blur(4px); }
+    .overlay[hidden] { display:none; }
+    .card { width:min(100%,330px); padding:25px 22px 22px; border:1px solid #ffffff25; border-radius:24px; background:#131630dd; box-shadow:0 18px 55px #0007; }
+    .eyebrow { color:var(--cyan); text-transform:uppercase; letter-spacing:.18em; font-weight:750; font-size:10px; }
+    .card h2 { margin:8px 0; font-size:clamp(24px,7vw,34px); }
+    .card p { color:#c2c3dd; line-height:1.65; font-size:14px; margin:10px 0 18px; }
+    .primary { border:0; border-radius:14px; padding:12px 24px; min-width:155px; color:#08121c; font-weight:800; font-size:15px; cursor:pointer; background:linear-gradient(110deg,var(--cyan),#a1c9ff 55%,#d1a3ff); box-shadow:0 7px 25px #7cf7e833; transition:transform .15s,filter .15s; }
+    .primary:hover { transform:translateY(-2px); filter:brightness(1.08); }
+    .hint { margin:11px 0 0; color:#888ba9; font-size:11px; }
+    .controls { display:flex; justify-content:space-between; align-items:center; gap:10px; color:var(--muted); font-size:12px; padding:11px 3px 0; }
+    .keys { display:flex; gap:4px; align-items:center; }
+    kbd { min-width:22px; padding:3px 6px; border:1px solid #ffffff25; border-radius:6px; background:#ffffff0b; color:#deddf6; font:inherit; text-align:center; }
+    .mobile-note { display:none; }
+    @media (pointer:coarse) { .desktop-note { display:none; } .mobile-note { display:inline; } }
+    @media(max-width:420px) { body { padding:10px; } canvas { min-height:340px; height:62svh; } .stat { padding:7px 9px; } .stat-value { font-size:17px; } }
+  </style>
+</head>
+<body>
+  <main class="game">
+    <header>
+      <div class="brand"><div class="brand-icon" aria-hidden="true">🚀</div><div><h1>星海穿梭</h1><div class="tagline">一场轻快的太空冒险</div></div></div>
+      <button class="sound" id="soundButton" aria-label="开启音效" title="开启音效">🔇</button>
+    </header>
+    <section class="hud" aria-label="游戏数据">
+      <div class="stat"><span class="stat-label">得分 SCORE</span><span class="stat-value" id="score">0000</span></div>
+      <div class="stat"><span class="stat-label">星星 STARS</span><span class="stat-value" id="stars">✦ 0</span></div>
+      <div class="stat"><span class="stat-label">最佳 BEST</span><span class="stat-value" id="best">0000</span></div>
+    </section>
+    <section class="arena" aria-label="星海穿梭游戏区域">
+      <canvas id="gameCanvas" aria-label="驾驶飞船躲避陨石并收集星星"></canvas>
+      <div class="overlay" id="overlay">
+        <div class="card"><div class="eyebrow" id="eyebrow">READY, PILOT?</div><h2 id="title">准备好出发了吗？</h2><p id="message">躲开陨石，收集闪亮星星。飞得越久，速度越快！</p><button class="primary" id="startButton">开始冒险 ✦</button><div class="hint">每颗星星都能让你的旅程更精彩</div></div>
+      </div>
+    </section>
+    <footer class="controls"><span class="desktop-note">移动 <span class="keys"><kbd>←</kbd><kbd>→</kbd> 或 <kbd>A</kbd><kbd>D</kbd></span></span><span class="mobile-note">按住并左右滑动来驾驶</span><span>躲陨石 · 收星星</span><span>暂停 <kbd>空格</kbd></span></footer>
+  </main>
+<script>
+(() => {
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+  const overlay = document.getElementById('overlay');
+  const startButton = document.getElementById('startButton');
+  const scoreEl = document.getElementById('score');
+  const starsEl = document.getElementById('stars');
+  const bestEl = document.getElementById('best');
+  const soundButton = document.getElementById('soundButton');
+  const W = 480, H = 600;
+  let dpr = 1, state = 'ready', lastTime = 0, elapsed = 0, score = 0, starCount = 0;
+  let player, hazards = [], pickups = [], particles = [], stars = [], spawnHazard = 0, spawnPickup = 0, audio = null, soundOn = false;
+  let pointerDown = false, targetX = W / 2;
+  let best = Number(localStorage.getItem('star-sea-best') || 0);
+  bestEl.textContent = String(best).padStart(4,'0');
+  const keys = new Set();
+  const rand = (min,max) => Math.random() * (max-min) + min;
+  const clamp = (v,min,max) => Math.max(min,Math.min(max,v));
+
+  function resize() {
+    const rect = canvas.getBoundingClientRect();
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.round(rect.width * dpr);
+    canvas.height = Math.round(rect.height * dpr);
+    ctx.setTransform(canvas.width / W, 0, 0, canvas.height / H, 0, 0);
+  }
+  function makeBackground() {
+    stars = Array.from({length:95}, () => ({x:rand(0,W),y:rand(0,H),r:rand(.5,1.8),speed:rand(15,65),alpha:rand(.2,.85),phase:rand(0,7)}));
+  }
+  function reset() {
+    elapsed = 0; score = 0; starCount = 0; spawnHazard = .6; spawnPickup = 1.8;
+    hazards = []; pickups = []; particles = [];
+    player = {x:W/2,y:H-72,r:16,invulnerable:0}; targetX = player.x;
+    updateHud();
+  }
+  function updateHud() {
+    scoreEl.textContent = String(Math.floor(score)).padStart(4,'0');
+    starsEl.textContent = '✦ ' + starCount;
+    bestEl.textContent = String(best).padStart(4,'0');
+  }
+  function start() { reset(); state = 'playing'; overlay.hidden = true; lastTime = performance.now(); requestAnimationFrame(loop); }
+  function endGame() {
+    state = 'over';
+    const finalScore = Math.floor(score);
+    if (finalScore > best) { best = finalScore; localStorage.setItem('star-sea-best', String(best)); }
+    updateHud();
+    document.getElementById('eyebrow').textContent = 'VOYAGE COMPLETE';
+    document.getElementById('title').textContent = '旅程结束！';
+    document.getElementById('message').textContent = `你获得了 ${finalScore} 分，收集了 ${starCount} 颗星星。再来一次，飞得更远吧！`;
+    startButton.textContent = '再玩一次 ↻';
+    overlay.hidden = false;
+  }
+  function togglePause() {
+    if (state === 'playing') {
+      state = 'paused';
+      document.getElementById('eyebrow').textContent = 'TAKE A BREATH';
+      document.getElementById('title').textContent = '暂停一下';
+      document.getElementById('message').textContent = '星海在等你。准备好后，继续你的冒险吧。';
+      startButton.textContent = '继续飞行 →'; overlay.hidden = false;
+    } else if (state === 'paused') { state = 'playing'; overlay.hidden = true; lastTime = performance.now(); requestAnimationFrame(loop); }
+  }
+  function burst(x,y,color,count=12) {
+    for (let i=0;i<count;i++) { const a=rand(0,Math.PI*2), speed=rand(45,180); particles.push({x,y,vx:Math.cos(a)*speed,vy:Math.sin(a)*speed,life:rand(.3,.75),max:.75,color,size:rand(2,4)}); }
+  }
+  function playTone(freq,duration=.09,type='sine') {
+    if (!soundOn) return;
+    try { audio ||= new (window.AudioContext || window.webkitAudioContext)(); const o=audio.createOscillator(), g=audio.createGain(); o.type=type; o.frequency.value=freq; g.gain.setValueAtTime(.055,audio.currentTime); g.gain.exponentialRampToValueAtTime(.001,audio.currentTime+duration); o.connect(g); g.connect(audio.destination); o.start(); o.stop(audio.currentTime+duration); } catch (_) {}
+  }
+  function update(dt) {
+    elapsed += dt;
+    const speed = 190 + Math.min(elapsed*5,170);
+    for (const s of stars) { s.y += s.speed*dt*(1+elapsed*.002); if(s.y>H){s.y=-2;s.x=rand(0,W);} }
+    let direction = (keys.has('ArrowRight')||keys.has('d')||keys.has('D')?1:0) - (keys.has('ArrowLeft')||keys.has('a')||keys.has('A')?1:0);
+    if (direction) targetX = player.x + direction*260*dt;
+    player.x += (targetX-player.x)*Math.min(1,dt*11);
+    player.x = clamp(player.x,24,W-24);
+    if (player.invulnerable>0) player.invulnerable-=dt;
+    spawnHazard -= dt;
+    if (spawnHazard<=0) {
+      const r=rand(13,25); hazards.push({x:rand(r+8,W-r-8),y:-r,r,rotation:rand(0,6.28),spin:rand(-2,2),speed:speed*rand(.75,1.13),sides:Math.floor(rand(7,11))});
+      spawnHazard=rand(.55,1.05)*Math.max(.5,1-elapsed/100);
+    }
+    spawnPickup -= dt;
+    if (spawnPickup<=0) { pickups.push({x:rand(30,W-30),y:-20,r:10,phase:rand(0,6.28)}); spawnPickup=rand(2.2,3.8); }
+    for (let i=hazards.length-1;i>=0;i--) {
+      const h=hazards[i]; h.y+=h.speed*dt; h.rotation+=h.spin*dt;
+      if(h.y>H+40){hazards.splice(i,1);continue;}
+      if(player.invulnerable<=0 && Math.hypot(player.x-h.x,player.y-h.y)<player.r+h.r*.75){burst(player.x,player.y,'#ff77bd',24);playTone(110,.35,'sawtooth');endGame();return;}
+    }
+    for (let i=pickups.length-1;i>=0;i--) {
+      const p=pickups[i]; p.y+=(speed*.72)*dt; p.phase+=dt*4;
+      if(p.y>H+20){pickups.splice(i,1);continue;}
+      if(Math.hypot(player.x-p.x,player.y-p.y)<player.r+p.r+4){starCount++;score+=100;burst(p.x,p.y,'#ffe58f',14);playTone(660,.12);pickups.splice(i,1);}
+    }
+    for(let i=particles.length-1;i>=0;i--){const p=particles[i];p.x+=p.vx*dt;p.y+=p.vy*dt;p.vx*=.98;p.vy*=.98;p.life-=dt;if(p.life<=0)particles.splice(i,1);}
+    score += dt*(10+Math.min(elapsed*.12,12)); updateHud();
+  }
+  function draw() {
+    ctx.clearRect(0,0,W,H);
+    const bg=ctx.createLinearGradient(0,0,0,H); bg.addColorStop(0,'#101536');bg.addColorStop(1,'#080b1c');ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+    for(const s of stars){ctx.globalAlpha=s.alpha*(.72+.28*Math.sin(elapsed*2+s.phase));ctx.fillStyle='#d9e7ff';ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,Math.PI*2);ctx.fill();}ctx.globalAlpha=1;
+    // soft distant nebulae
+    const glow=ctx.createRadialGradient(90,190,2,90,190,180);glow.addColorStop(0,'#6f4bd51a');glow.addColorStop(1,'#6f4bd500');ctx.fillStyle=glow;ctx.fillRect(0,0,W,H);
+    for(const p of pickups){const pulse=1+Math.sin(p.phase)*.15;ctx.save();ctx.translate(p.x,p.y);ctx.scale(pulse,pulse);ctx.shadowBlur=22;ctx.shadowColor='#ffe58f';ctx.fillStyle='#ffe58f';ctx.beginPath();for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5,r=i%2?5:11;ctx.lineTo(Math.cos(a)*r,Math.sin(a)*r);}ctx.closePath();ctx.fill();ctx.restore();}
+    for(const h of hazards){ctx.save();ctx.translate(h.x,h.y);ctx.rotate(h.rotation);ctx.shadowColor='#ff668c';ctx.shadowBlur=13;ctx.fillStyle='#80566d';ctx.strokeStyle='#ff93a7';ctx.lineWidth=2;ctx.beginPath();for(let i=0;i<h.sides;i++){const a=i*Math.PI*2/h.sides,r=h.r*(i%2?.82:1);ctx.lineTo(Math.cos(a)*r,Math.sin(a)*r);}ctx.closePath();ctx.fill();ctx.stroke();ctx.shadowBlur=0;ctx.fillStyle='#49364f';ctx.beginPath();ctx.arc(-h.r*.23,-h.r*.12,h.r*.18,0,Math.PI*2);ctx.fill();ctx.restore();}
+    for(const p of particles){ctx.globalAlpha=Math.max(0,p.life/p.max);ctx.fillStyle=p.color;ctx.beginPath();ctx.arc(p.x,p.y,p.size,0,Math.PI*2);ctx.fill();}ctx.globalAlpha=1;
+    if(player && (state==='playing'||state==='paused')){
+      ctx.save();ctx.translate(player.x,player.y);if(player.invulnerable>0&&Math.floor(elapsed*14)%2===0)ctx.globalAlpha=.35;
+      ctx.shadowColor='#7cf7e8';ctx.shadowBlur=20;
+      ctx.fillStyle='#ff9f70';ctx.beginPath();ctx.moveTo(-6,12);ctx.lineTo(0,27+Math.random()*5);ctx.lineTo(6,12);ctx.fill();
+      const ship=ctx.createLinearGradient(-14,-16,14,16);ship.addColorStop(0,'#b3fff5');ship.addColorStop(1,'#7c9dff');ctx.fillStyle=ship;ctx.strokeStyle='#edffff';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(0,-20);ctx.quadraticCurveTo(5,-9,14,13);ctx.quadraticCurveTo(7,10,0,14);ctx.quadraticCurveTo(-7,10,-14,13);ctx.quadraticCurveTo(-5,-9,0,-20);ctx.fill();ctx.stroke();ctx.shadowBlur=0;ctx.fillStyle='#273c72';ctx.beginPath();ctx.ellipse(0,-3,4,6,0,0,Math.PI*2);ctx.fill();ctx.restore();
+    }
+  }
+  function loop(now) { if(state!=='playing')return; const dt=Math.min((now-lastTime)/1000,.033);lastTime=now;update(dt);draw();if(state==='playing')requestAnimationFrame(loop); }
+  startButton.addEventListener('click',()=>{if(state==='paused')togglePause();else{document.getElementById('eyebrow').textContent='READY, PILOT?';document.getElementById('title').textContent='准备好出发了吗？';startButton.textContent='开始冒险 ✦';start();}});
+  window.addEventListener('keydown',e=>{if(['ArrowLeft','ArrowRight',' ','ArrowUp','ArrowDown'].includes(e.key))e.preventDefault();keys.add(e.key);if(e.key===' '){if(state==='playing'||state==='paused')togglePause();}});
+  window.addEventListener('keyup',e=>keys.delete(e.key));
+  canvas.addEventListener('pointerdown',e=>{pointerDown=true;canvas.setPointerCapture(e.pointerId);const r=canvas.getBoundingClientRect();targetX=(e.clientX-r.left)/r.width*W;});
+  canvas.addEventListener('pointermove',e=>{if(pointerDown){const r=canvas.getBoundingClientRect();targetX=(e.clientX-r.left)/r.width*W;}});
+  canvas.addEventListener('pointerup',()=>pointerDown=false);canvas.addEventListener('pointercancel',()=>pointerDown=false);
+  soundButton.addEventListener('click',()=>{soundOn=!soundOn;soundButton.textContent=soundOn?'🔊':'🔇';soundButton.setAttribute('aria-label',soundOn?'关闭音效':'开启音效');if(soundOn)playTone(520,.1);});
+  window.addEventListener('resize',resize);
+  makeBackground();resize();draw();
+})();
+</script>
+</body>
+</html>
